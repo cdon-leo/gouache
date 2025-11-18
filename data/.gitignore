@@ -1,0 +1,6 @@
+# Ignore all graph data files
+graphs/*.json
+
+# But keep the directory
+!graphs/.gitkeep
+
