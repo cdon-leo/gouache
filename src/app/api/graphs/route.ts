@@ -23,7 +23,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, query, location, chartType, chartConfig } = body;
+    const { name, query, location, chartType, chartConfig, parameters } = body;
 
     // Validate required fields
     if (!name || !query || !chartType || !chartConfig) {
@@ -44,6 +44,7 @@ export async function POST(request: NextRequest) {
       location: location || "EU",
       chartType,
       chartConfig,
+      parameters,
     };
 
     saveGraph(newGraph);

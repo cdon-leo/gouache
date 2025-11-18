@@ -1,6 +1,7 @@
 import { BigQuery } from "@google-cloud/bigquery";
 import { SecretManagerServiceClient } from "@google-cloud/secret-manager";
 import { NextRequest, NextResponse } from "next/server";
+import { substituteQueryParameters } from "@/lib/queryParams";
 
 /**
  * Gets a BigQuery client with appropriate authentication.
@@ -81,7 +82,7 @@ async function getBigQueryClient(): Promise<BigQuery> {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { query, location } = body;
+    const { query, location, parameters, parameterTypes } = body;
 
     if (!query || typeof query !== "string") {
       return NextResponse.json(
@@ -90,12 +91,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Substitute parameters in the query if provided
+    let finalQuery = query;
+    if (parameters && parameterTypes && Object.keys(parameters).length > 0) {
+      finalQuery = substituteQueryParameters(query, parameters, parameterTypes);
+    }
+
     // Get BigQuery client with appropriate authentication
     const bigquery = await getBigQueryClient();
 
     // Execute the query
     const [rows] = await bigquery.query({
-      query: query,
+      query: finalQuery,
       location: location || "EU", // Default to EU if not specified
     });
 

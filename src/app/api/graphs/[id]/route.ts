@@ -48,7 +48,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { name, query, location, chartType, chartConfig } = body;
+    const { name, query, location, chartType, chartConfig, parameters } = body;
 
     // Update graph with new data
     const updatedGraph: GraphConfig = {
@@ -58,6 +58,7 @@ export async function PUT(
       location: location ?? existingGraph.location,
       chartType: chartType ?? existingGraph.chartType,
       chartConfig: chartConfig ?? existingGraph.chartConfig,
+      parameters: parameters ?? existingGraph.parameters,
     };
 
     saveGraph(updatedGraph);

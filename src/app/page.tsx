@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { GraphConfig } from "@/types/graph";
+import { GraphConfig, ParameterDefinition } from "@/types/graph";
 import { ChartRenderer } from "@/components/charts/ChartRenderer";
 import { transformDataForChart } from "@/lib/chartData";
 
@@ -22,6 +22,7 @@ export default function Home() {
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [currentParameters, setCurrentParameters] = useState<Record<string, string>>({});
 
   // Load all graphs on mount
   useEffect(() => {
@@ -49,9 +50,33 @@ export default function Home() {
     setSelectedGraph(graph);
     setChartData(null);
     setError(null);
+    
+    // Initialize parameters with default values
+    const defaultParams: Record<string, string> = {};
+    if (graph.parameters) {
+      for (const param of graph.parameters) {
+        defaultParams[param.name] = param.defaultValue;
+      }
+    }
+    setCurrentParameters(defaultParams);
+    
+    // Load data with default parameters
+    await loadGraphData(graph, defaultParams);
+  };
+
+  const loadGraphData = async (graph: GraphConfig, paramValues: Record<string, string>) => {
     setLoading(true);
+    setError(null);
 
     try {
+      // Create parameter types map
+      const paramTypes: Record<string, string> = {};
+      if (graph.parameters) {
+        for (const param of graph.parameters) {
+          paramTypes[param.name] = param.type;
+        }
+      }
+
       // Execute the query
       const response = await fetch("/api/query", {
         method: "POST",
@@ -61,6 +86,8 @@ export default function Home() {
         body: JSON.stringify({
           query: graph.query,
           location: graph.location,
+          parameters: paramValues,
+          parameterTypes: paramTypes,
         }),
       });
 
@@ -77,6 +104,12 @@ export default function Home() {
       );
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUpdateGraph = () => {
+    if (selectedGraph) {
+      loadGraphData(selectedGraph, currentParameters);
     }
   };
 
@@ -246,6 +279,49 @@ export default function Home() {
                   </button>
                 </div>
               </div>
+
+              {/* Parameters Section */}
+              {selectedGraph.parameters && selectedGraph.parameters.length > 0 && (
+                <div className="mb-6 space-y-4 rounded border border-gray-300 p-4">
+                  <h3 className="text-sm font-semibold text-black">Parameters</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    {selectedGraph.parameters.map((param) => (
+                      <div key={param.name} className="space-y-1">
+                        <label className="block text-xs font-medium text-gray-700">
+                          {param.name}
+                        </label>
+                        <input
+                          type={
+                            param.type === "number"
+                              ? "number"
+                              : param.type === "date"
+                                ? "date"
+                                : param.type === "datetime"
+                                  ? "datetime-local"
+                                  : "text"
+                          }
+                          value={currentParameters[param.name] || ""}
+                          onChange={(e) => {
+                            setCurrentParameters({
+                              ...currentParameters,
+                              [param.name]: e.target.value,
+                            });
+                          }}
+                          className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-black focus:ring-1 focus:ring-black focus:outline-none"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleUpdateGraph}
+                    disabled={loading}
+                    className="w-full rounded border border-black bg-black px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {loading ? "Updating..." : "Update Graph"}
+                  </button>
+                </div>
+              )}
 
               {/* Chart */}
               <div className="flex-1 rounded border border-gray-300 bg-white p-6">

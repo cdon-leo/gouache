@@ -2,6 +2,14 @@ export type ChartType = "bar" | "line" | "pie";
 
 export type AggregateFunction = "sum" | "count" | "avg" | "min" | "max";
 
+export type ParameterType = "text" | "number" | "date" | "datetime";
+
+export interface ParameterDefinition {
+  name: string;
+  type: ParameterType;
+  defaultValue: string;
+}
+
 export interface ChartConfig {
   xAxis: string;
   yAxis: string;
@@ -17,6 +25,7 @@ export interface GraphConfig {
   location: string;
   chartType: ChartType;
   chartConfig: ChartConfig;
+  parameters?: ParameterDefinition[];
 }
 
 export interface QueryResult {

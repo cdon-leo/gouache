@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
-import { ChartType, AggregateFunction, GraphConfig } from "@/types/graph";
+import { ChartType, AggregateFunction, GraphConfig, ParameterDefinition, ParameterType } from "@/types/graph";
 import { ChartRenderer } from "@/components/charts/ChartRenderer";
 import {
   transformDataForChart,
@@ -11,6 +11,7 @@ import {
   validateChartConfig,
 } from "@/lib/chartData";
 import { formatBigQueryValue } from "@/lib/formatValue";
+import { extractQueryParameters } from "@/lib/queryParams";
 
 // Dynamically import Monaco Editor to avoid SSR issues
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
@@ -44,12 +45,14 @@ function ConfigurePageContent() {
   const [aggregate, setAggregate] = useState<AggregateFunction>("sum");
   const [groupBy, setGroupBy] = useState("");
   const [barLayout, setBarLayout] = useState<"grouped" | "stacked">("grouped");
+  const [parameters, setParameters] = useState<ParameterDefinition[]>([]);
 
   // UI state
   const [results, setResults] = useState<QueryResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [availableColumns, setAvailableColumns] = useState<string[]>([]);
+  const [detectedParams, setDetectedParams] = useState<string[]>([]);
 
   // Load existing graph if editing
   useEffect(() => {
@@ -68,11 +71,32 @@ function ConfigurePageContent() {
             setAggregate(graph.chartConfig.aggregate);
             setGroupBy(graph.chartConfig.groupBy || "");
             setBarLayout(graph.chartConfig.barLayout || "grouped");
+            setParameters(graph.parameters || []);
           }
         })
         .catch((error) => console.error("Error loading graph:", error));
     }
   }, [editId]);
+
+  // Detect parameters in query
+  useEffect(() => {
+    const params = extractQueryParameters(query);
+    setDetectedParams(params);
+    
+    // Update parameters state - add new params, remove deleted ones, keep existing definitions
+    setParameters((prevParams) => {
+      const paramMap = new Map(prevParams.map(p => [p.name, p]));
+      
+      return params.map(paramName => {
+        // Keep existing definition if available, otherwise create new one
+        return paramMap.get(paramName) || {
+          name: paramName,
+          type: "text" as ParameterType,
+          defaultValue: "",
+        };
+      });
+    });
+  }, [query]);
 
   // Update available columns when results change
   useEffect(() => {
@@ -95,12 +119,26 @@ function ConfigurePageContent() {
     setResults(null);
 
     try {
+      // Create parameters object from parameter definitions
+      const paramValues: Record<string, string> = {};
+      const paramTypes: Record<string, string> = {};
+      
+      for (const param of parameters) {
+        paramValues[param.name] = param.defaultValue;
+        paramTypes[param.name] = param.type;
+      }
+
       const response = await fetch("/api/query", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ query, location }),
+        body: JSON.stringify({ 
+          query, 
+          location,
+          parameters: paramValues,
+          parameterTypes: paramTypes,
+        }),
       });
 
       const data = await response.json();
@@ -142,6 +180,7 @@ function ConfigurePageContent() {
           groupBy: groupBy || undefined,
           barLayout: chartType === "bar" ? barLayout : undefined,
         },
+        parameters: parameters.length > 0 ? parameters : undefined,
       };
 
       const url = editId ? `/api/graphs/${editId}` : "/api/graphs";
@@ -366,6 +405,86 @@ function ConfigurePageContent() {
                 />
               </div>
             </div>
+
+            {/* Parameters Section */}
+            {detectedParams.length > 0 && (
+              <div className="space-y-4 rounded border border-gray-300 p-4">
+                <h2 className="text-sm font-semibold text-black">
+                  Query Parameters
+                </h2>
+                <div className="space-y-3">
+                  {parameters.map((param, index) => (
+                    <div key={param.name} className="grid grid-cols-3 gap-3">
+                      {/* Parameter Name */}
+                      <div className="space-y-1">
+                        <label className="block text-xs font-medium text-gray-700">
+                          Name
+                        </label>
+                        <input
+                          type="text"
+                          value={param.name}
+                          disabled
+                          className="w-full rounded border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-600"
+                        />
+                      </div>
+
+                      {/* Parameter Type */}
+                      <div className="space-y-1">
+                        <label className="block text-xs font-medium text-gray-700">
+                          Type
+                        </label>
+                        <select
+                          value={param.type}
+                          onChange={(e) => {
+                            const newParams = [...parameters];
+                            newParams[index] = {
+                              ...param,
+                              type: e.target.value as ParameterType,
+                            };
+                            setParameters(newParams);
+                          }}
+                          className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-black focus:ring-1 focus:ring-black focus:outline-none"
+                        >
+                          <option value="text">Text</option>
+                          <option value="number">Number</option>
+                          <option value="date">Date</option>
+                          <option value="datetime">DateTime</option>
+                        </select>
+                      </div>
+
+                      {/* Default Value */}
+                      <div className="space-y-1">
+                        <label className="block text-xs font-medium text-gray-700">
+                          Default Value
+                        </label>
+                        <input
+                          type={
+                            param.type === "number"
+                              ? "number"
+                              : param.type === "date"
+                                ? "date"
+                                : param.type === "datetime"
+                                  ? "datetime-local"
+                                  : "text"
+                          }
+                          value={param.defaultValue}
+                          onChange={(e) => {
+                            const newParams = [...parameters];
+                            newParams[index] = {
+                              ...param,
+                              defaultValue: e.target.value,
+                            };
+                            setParameters(newParams);
+                          }}
+                          className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-black focus:ring-1 focus:ring-black focus:outline-none"
+                          placeholder="Enter default value"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Run Query Button */}
             <button
