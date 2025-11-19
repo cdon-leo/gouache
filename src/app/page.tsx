@@ -22,7 +22,9 @@ export default function Home() {
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [currentParameters, setCurrentParameters] = useState<Record<string, string>>({});
+  const [currentParameters, setCurrentParameters] = useState<
+    Record<string, string>
+  >({});
 
   // Load all graphs on mount
   useEffect(() => {
@@ -50,7 +52,7 @@ export default function Home() {
     setSelectedGraph(graph);
     setChartData(null);
     setError(null);
-    
+
     // Initialize parameters with default values
     const defaultParams: Record<string, string> = {};
     if (graph.parameters) {
@@ -59,12 +61,15 @@ export default function Home() {
       }
     }
     setCurrentParameters(defaultParams);
-    
+
     // Load data with default parameters
     await loadGraphData(graph, defaultParams);
   };
 
-  const loadGraphData = async (graph: GraphConfig, paramValues: Record<string, string>) => {
+  const loadGraphData = async (
+    graph: GraphConfig,
+    paramValues: Record<string, string>
+  ) => {
     setLoading(true);
     setError(null);
 
@@ -210,19 +215,11 @@ export default function Home() {
     <div className="min-h-screen bg-white">
       <div className="flex h-screen">
         {/* Sidebar */}
-        <div className="w-80 border-r border-gray-300 p-6">
-          <div className="space-y-6">
+        <div className="w-80 p-6">
+          <div className="relative h-full space-y-6">
             <div>
-              <h1 className="text-2xl font-bold text-black">Graphs</h1>
+              <h1 className="text-xl text-black">Graphs</h1>
             </div>
-
-            <button
-              type="button"
-              onClick={handleCreateGraph}
-              className="w-full rounded border border-black bg-black px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
-            >
-              Create New Graph
-            </button>
 
             <div className="space-y-1">
               {graphs.length === 0 ? (
@@ -232,10 +229,10 @@ export default function Home() {
                   <button
                     key={graph.id}
                     onClick={() => handleSelectGraph(graph)}
-                    className={`w-full rounded px-4 py-3 text-left text-sm transition-colors ${
+                    className={`w-full border-l px-2 py-1 text-left text-sm transition-colors ${
                       selectedGraph?.id === graph.id
-                        ? "bg-gray-100 font-medium text-black"
-                        : "text-gray-700 hover:bg-gray-50"
+                        ? "border-black font-medium text-black"
+                        : "border-transparent text-gray-600 hover:border-gray-600 hover:text-black"
                     }`}
                   >
                     {graph.name}
@@ -243,6 +240,14 @@ export default function Home() {
                 ))
               )}
             </div>
+
+            <button
+              type="button"
+              onClick={handleCreateGraph}
+              className="absolute bottom-0 w-full rounded-full border border-transparent px-4 py-2 text-sm font-medium text-gray-600 hover:border-black hover:text-black"
+            >
+              Create New Graph
+            </button>
           </div>
         </div>
 
@@ -281,52 +286,53 @@ export default function Home() {
               </div>
 
               {/* Parameters Section */}
-              {selectedGraph.parameters && selectedGraph.parameters.length > 0 && (
-                <div className="mb-6 space-y-4 rounded border border-gray-300 p-4">
-                  <h3 className="text-sm font-semibold text-black">Parameters</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    {selectedGraph.parameters.map((param) => (
-                      <div key={param.name} className="space-y-1">
-                        <label className="block text-xs font-medium text-gray-700">
-                          {param.name}
-                        </label>
-                        <input
-                          type={
-                            param.type === "number"
-                              ? "number"
-                              : param.type === "date"
-                                ? "date"
-                                : param.type === "datetime"
-                                  ? "datetime-local"
-                                  : "text"
-                          }
-                          value={currentParameters[param.name] || ""}
-                          onChange={(e) => {
-                            setCurrentParameters({
-                              ...currentParameters,
-                              [param.name]: e.target.value,
-                            });
-                          }}
-                          className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-black focus:ring-1 focus:ring-black focus:outline-none"
-                        />
-                      </div>
-                    ))}
+              {selectedGraph.parameters &&
+                selectedGraph.parameters.length > 0 && (
+                  <div className="mb-6 space-y-4 rounded border border-gray-300 p-4">
+                    <h3 className="text-sm font-semibold text-black">
+                      Parameters
+                    </h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      {selectedGraph.parameters.map((param) => (
+                        <div key={param.name} className="space-y-1">
+                          <label className="block text-xs font-medium text-gray-700">
+                            {param.name}
+                          </label>
+                          <input
+                            type={
+                              param.type === "number"
+                                ? "number"
+                                : param.type === "date"
+                                  ? "date"
+                                  : param.type === "datetime"
+                                    ? "datetime-local"
+                                    : "text"
+                            }
+                            value={currentParameters[param.name] || ""}
+                            onChange={(e) => {
+                              setCurrentParameters({
+                                ...currentParameters,
+                                [param.name]: e.target.value,
+                              });
+                            }}
+                            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-black focus:ring-1 focus:ring-black focus:outline-none"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleUpdateGraph}
+                      disabled={loading}
+                      className="w-full rounded border border-black bg-black px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {loading ? "Updating..." : "Update Graph"}
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleUpdateGraph}
-                    disabled={loading}
-                    className="w-full rounded border border-black bg-black px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {loading ? "Updating..." : "Update Graph"}
-                  </button>
-                </div>
-              )}
+                )}
 
               {/* Chart */}
-              <div className="flex-1 rounded border border-gray-300 bg-white p-6">
-                {renderChart()}
-              </div>
+              <div className="flex-1 bg-white p-6">{renderChart()}</div>
             </div>
           ) : (
             <div className="flex h-full items-center justify-center">
